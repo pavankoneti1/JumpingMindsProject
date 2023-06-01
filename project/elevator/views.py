@@ -263,12 +263,31 @@ class ElevatorFunctions(viewsets.ModelViewSet):
                     next_destination = next_floors[0]
                     next_final_destination = None
                     final_destination = min_floor
+
+            cache.set('next_destination', next_destination)
             cache.set('direction', direction, timeout=None)
 
             return Response({"success":True, "destinations": next_floors, "next_destination": next_destination, "final_destination": final_destination, "moving_direction_final_destination": next_final_destination, "current_direction": direction})
 
         return Response({"success": True, "direction": direction, "next_floors": next_floors, "destinations": destinations})
 
+    @action(detail=False, methods=['POST'])
+    def destination_visited(self, request, *args, **kwargs):
+        data = request.data
+        elevator_name = data['elevator_name']
+        current_floor = data['current_floor']
+
+        elevator = ElevatorsModel.objects.filter(elevator_name=elevator_name).first()
+        if elevator is None:
+            raise Exception(f"elevator with name {elevator_name} dosen't exists")
+
+        self.queryset.delete(elevator_id=elevator.id, current_floor=current_floor)
+        next_destination = cache.get('next_destination')
+
+        if next_destination is not None:
+            self.queryset.create(elevator_id=elevator.id, current_floor=next_destination)
+
+        return Response({"success":True, "next_destination": next_destination})
 
     @action(detail=False, methods=['GET'])
     def get_current_floor(self, request, *args, **kwargs):
