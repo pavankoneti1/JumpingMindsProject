@@ -159,15 +159,15 @@ class UserRequests(viewsets.ModelViewSet):
         min_floor = elevator.first_floor
         max_floor = elevator.last_floor
 
-        if user_request in range(min_floor, max_floor):
+        if user_request in range(min_floor, max_floor+1):
             if next_destinations is None:
                 cache.set('destinations', {user_request}, timeout=None)
-                UserRequests.objects.create(elevator_id=elevator.id, destination_floor=user_request)
+                UserRequestModels.objects.create(elevator_id=elevator.id, destination_floor=user_request)
 
             else:
                 next_destinations.add(user_request)
-                cache.set('destinations', next_destinations, timeout=None)
-                UserRequests.objects.create(elevator_id=elevator.id, destination_floor=user_request)
+                cache.set('destinations', set(next_destinations), timeout=None)
+                UserRequestModels.objects.create(elevator_id=elevator.id, destination_floor=user_request)
 
             return Response({"success": True, "data": request.data, "next destinations": cache.get('destinations')})
 
@@ -186,29 +186,41 @@ class ElevatorFunctions(viewsets.ModelViewSet):
     def elevator(self, request, *args, **kwargs):
         direction_class = UserRequests()
         direction = cache.get('direction')
-        destinations = cache.get('destinations')
-        destinations = destinations if destinations else []
+        elevator_name = request.data['elevator_name']
+        elevator_id = ElevatorsModel.objects.filter(elevator_name=elevator_name).first().id
+        all_destinations = (self.queryset.filter(elevator_id=elevator_id).values('destination_floor'))
+        destinations = set()
+        for i in all_destinations:
+            destinations.add(i['destination_floor'])
+
+        destinations = list(sorted(destinations)) if destinations else []
+
+        direction = 'stand_by' if direction is None else direction
+
+        # login for checking no pending requests
+        if len(destinations) == 0:
+            cache.set('direction', 'stand_by', timeout=None)
+            cache.set('next_destination', None, timeout=None)
+            return Response({"success":True, "destinations": None, "next_destination": None, "final_destination": None, "moving_direction_final_destination": None, "current_direction": direction})
 
         max_floor = destinations[-1]
         min_floor = destinations[0]
 
         data = request.data
-        current_floor = data['current_floor']
-        door = data['door']
         elevator_name = data['elevator_name']
+        elevator = ElevatorsModel.objects.filter(elevator_name=elevator_name).first()
+        current_floor = elevator.current_floor
+        door = data['door']
 
         destinations.append(current_floor)
         destinations = list(sorted(destinations))
 
-        elevator_id = self.queryset.filter(elevator_name=elevator_name).id
+        if current_floor == destinations[0]:
+            direction = 'moving up'
+        elif current_floor == destinations[-1]:
+            direction = 'moving down'
 
-        self.queryset.create(elevator_id=elevator_id, current_floor=current_floor)
-        print(elevator_id, destinations, max_floor, min_floor)
-
-        # login for checking no pending requests
-        if len(destinations) == 1:
-            cache.set('direction', 'stand_by', timeout=None)
-            return Response({"success":True, "destinations": None, "next_destination": None, "final_destination": None, "moving_direction_final_destination": None, "current_direction": direction})
+        elevator_id = elevator.id
 
         # Logic for if elevator is in stand_by
         if direction == "stand_by":
@@ -226,6 +238,7 @@ class ElevatorFunctions(viewsets.ModelViewSet):
                 next_destination = next_floors[0]
                 next_final_destination = min_floor
                 final_destination = max_floor
+                final_destination = min_floor if current_floor > max_floor else max_floor
 
                 if len(destinations[current_floor_index+1:]):
                     next_floors += destinations[current_floor_index+1:]
@@ -239,9 +252,13 @@ class ElevatorFunctions(viewsets.ModelViewSet):
                     next_destination = next_floors[0]
                     next_final_destination = None
                     final_destination = max_floor
-            cache.set('direction', direction, timeout=None)
 
+            cache.set('direction', direction, timeout=None)
+            cache.set('next_destination', next_destination, timeout = None)
+            self.queryset.create(elevator_id=elevator_id, destination_floor=next_destination)
             return Response({"success":True, "destinations": next_floors, "next_destination": next_destination, "final_destination": final_destination, "moving_direction_final_destination": next_final_destination, "current_direction": direction})
+
+        print(direction)
 
         # Logic for elevator is moving up
         if direction == 'moving up':
@@ -249,8 +266,9 @@ class ElevatorFunctions(viewsets.ModelViewSet):
                 next_floors = destinations[current_floor_index+1:]
                 next_destination = destinations[0]
                 next_final_destination = max_floor
-                final_destination = min_floor
+                final_destination = min_floor if current_floor > min_floor else max_floor
 
+                print(next_floors, next_destination)
                 if len(destinations[:current_floor_index]):
                     next_floors += destinations[:current_floor_index]
 
@@ -264,30 +282,39 @@ class ElevatorFunctions(viewsets.ModelViewSet):
                     next_final_destination = None
                     final_destination = min_floor
 
-            cache.set('next_destination', next_destination)
+            cache.set('next_destination', next_destination, timeout = None)
             cache.set('direction', direction, timeout=None)
+            self.queryset.create(elevator_id=elevator_id, destination_floor=next_destination)
 
             return Response({"success":True, "destinations": next_floors, "next_destination": next_destination, "final_destination": final_destination, "moving_direction_final_destination": next_final_destination, "current_direction": direction})
 
         return Response({"success": True, "direction": direction, "next_floors": next_floors, "destinations": destinations})
 
+
     @action(detail=False, methods=['POST'])
-    def destination_visited(self, request, *args, **kwargs):
+    def destination_reached(self, request, *args, **kwargs):
         data = request.data
         elevator_name = data['elevator_name']
         current_floor = data['current_floor']
+        destinations = list(cache.get('destinations'))
 
         elevator = ElevatorsModel.objects.filter(elevator_name=elevator_name).first()
         if elevator is None:
             raise Exception(f"elevator with name {elevator_name} dosen't exists")
 
-        self.queryset.delete(elevator_id=elevator.id, current_floor=current_floor)
+        self.queryset.delete(elevator_id=elevator.id, destination_floor=current_floor)
+        elevator.update(elevator_id=elevator.id, current_floor=current_floor)
+        destinations.remove(current_floor)
+
         next_destination = cache.get('next_destination')
 
         if next_destination is not None:
-            self.queryset.create(elevator_id=elevator.id, current_floor=next_destination)
+            self.queryset.create(elevator_id=elevator.id, desination_floor=next_destination)
 
-        return Response({"success":True, "next_destination": next_destination})
+        cache.set('current_floor', next_destination, timeout=None)
+        cache.set('destinations', set(destinations), timeout=None)
+
+        return Response({"success":True, "next_destination": next_destination, "current_floor": current_floor})
 
     @action(detail=False, methods=['GET'])
     def get_current_floor(self, request, *args, **kwargs):
@@ -300,3 +327,4 @@ class ElevatorFunctions(viewsets.ModelViewSet):
         current_floor = elevator.current_floor
 
         return Response({"success": True, "current_floor": current_floor})
+
