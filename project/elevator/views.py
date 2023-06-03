@@ -91,7 +91,7 @@ class Maintenance(viewsets.ModelViewSet):
             raise Exception(f"Elevator with the {elevator_name} dosen't exists")
 
         self.queryset.filter(elevator_name=elevator_name).update(maintenance=True)
-        return Response({"success": True, "data": request.data})
+        return Response({"success": True, "data": self.queryset.filter(elevator_name=elevator_name).first().values()})
 
 
 class Door(viewsets.ModelViewSet):
@@ -153,23 +153,23 @@ class UserRequests(viewsets.ModelViewSet):
     def save_user_request(self, request, *args, **kwargs):
         elevator_name = request.data['elevator_name']
         user_request = request.data['floor']
-        next_destinations = cache.get('destinations')
+        destinations = cache.get('destinations')
 
         elevator = self.queryset.filter(elevator_name=elevator_name).first()
         min_floor = elevator.first_floor
         max_floor = elevator.last_floor
 
         if user_request in range(min_floor, max_floor+1):
-            if next_destinations is None:
+            if destinations is None:
                 cache.set('destinations', {user_request}, timeout=None)
                 UserRequestModels.objects.create(elevator_id=elevator.id, destination_floor=user_request)
 
             else:
-                next_destinations.add(user_request)
-                cache.set('destinations', set(next_destinations), timeout=None)
+                destinations.add(user_request)
+                cache.set('destinations', set(destinations), timeout=None)
                 UserRequestModels.objects.create(elevator_id=elevator.id, destination_floor=user_request)
 
-            return Response({"success": True, "data": request.data, "next destinations": cache.get('destinations')})
+            return Response({"success": True, "data": request.data, "destinations": cache.get('destinations')})
 
         raise Exception(f"user selected floor {user_request} is out of elevator floors")
 
@@ -187,7 +187,13 @@ class ElevatorFunctions(viewsets.ModelViewSet):
         direction_class = UserRequests()
         direction = cache.get('direction')
         elevator_name = request.data['elevator_name']
-        elevator_id = ElevatorsModel.objects.filter(elevator_name=elevator_name).first().id
+        elevator = ElevatorsModel.objects.filter(elevator_name=elevator_name).first()
+        elevator_id = elevator.id
+        maintenance = elevator.maintenance
+
+        if maintenance:
+            return Response({"Success": True, "message": "elevator is under maintenance"})
+
         all_destinations = (self.queryset.filter(elevator_id=elevator_id).values('destination_floor'))
         destinations = set()
         for i in all_destinations:
@@ -258,7 +264,6 @@ class ElevatorFunctions(viewsets.ModelViewSet):
             self.queryset.create(elevator_id=elevator_id, destination_floor=next_destination)
             return Response({"success":True, "destinations": next_floors, "next_destination": next_destination, "final_destination": final_destination, "moving_direction_final_destination": next_final_destination, "current_direction": direction})
 
-        print(direction)
 
         # Logic for elevator is moving up
         if direction == 'moving up':
@@ -268,7 +273,6 @@ class ElevatorFunctions(viewsets.ModelViewSet):
                 next_final_destination = max_floor
                 final_destination = min_floor if current_floor > min_floor else max_floor
 
-                print(next_floors, next_destination)
                 if len(destinations[:current_floor_index]):
                     next_floors += destinations[:current_floor_index]
 
