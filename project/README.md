@@ -311,3 +311,9 @@ API for elevator functionings like elevator operation, destination reached, curr
         "success":true, 
         "current_floor": 1
     }
+
+
+# Video Demonstrating the APP Flows
+
+https://clipchamp.com/watch/Ngkw0XzJJzc
+
