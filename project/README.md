@@ -230,6 +230,8 @@ API to open or close the door
     }
 
 ----------------------------------
+
+## Elevator functioning
 API for elevator functionings like elevator operation, destination reached, current floor status
 
 
@@ -252,6 +254,25 @@ API for elevator functionings like elevator operation, destination reached, curr
         "final_destination": 10,
         "moving_direction_final_destination": 10,
         "current_direction": "moving up"
+    }
+
+
+### POST Request
+
+    POST /elevator/reach_next_destination/
+
+#### body
+
+    {
+        "elevator_name": "e1"
+    }
+
+### Response
+
+    {
+        "success":true, 
+        "next_destination": 8,
+        "current_floor": 1
     }
 
 
