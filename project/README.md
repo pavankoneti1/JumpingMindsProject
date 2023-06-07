@@ -77,21 +77,10 @@ The REST API to the  app is described below.
             "door": "CLOSE"
         }
     }
-    
-## delete request
-
-`DELETE  /api/install/`
-
-
-### body
-    {
-        "elevator_name": "e1"
-    }
-
 
 ## update request
 
-`PATCH /api/install/`
+`PATCH /api/install/6/`
 
 ### body
     {
@@ -101,6 +90,19 @@ The REST API to the  app is described below.
         "last_floor": 9,
         "door": "CLOSE"
     }
+
+    
+## delete request
+
+`DELETE  /api/install/5`
+
+
+### body
+    {
+        "elevator_name": "e1"
+    }
+
+
 
 ----------------------------------
 
@@ -121,7 +123,7 @@ The REST API to the  app is described below.
 
     {
         "success": true, 
-        "elevator_status": "CLOSE"
+        "message": "Elevator is working"
     }
 
 ### PATCH Request
@@ -144,6 +146,7 @@ The REST API to the  app is described below.
             "current_floor": 0,
             "first_floor": 0,
             "last_floor": 9,
+            "maintenance": true,
             "door": "CLOSE"
         }
 
@@ -156,7 +159,7 @@ API to open or close the door
 
 ### PATCH Request
 
-    PATCH /api/maintenance/set_maintenance/
+    PATCH /api/door/open_or_close_door/
 
 #### body
 
@@ -174,6 +177,7 @@ API to open or close the door
             "current_floor": 0,
             "first_floor": 0,
             "last_floor": 9,
+            "maintenance": true,
             "door": "OPEN"
         }
 
@@ -185,7 +189,7 @@ API to open or close the door
 
 ### GET Request
 
-    GET /api/fetch_all_requests/
+    GET /api/userrequests/fetch_all_requests/
 
 ### Response
 
@@ -197,7 +201,7 @@ API to open or close the door
 
 ### GET Request
 
-    GET /api/get_elevator_direction/
+    GET /api/userrequests/get_elevator_direction/
 
 ### Response
 
@@ -209,7 +213,7 @@ API to open or close the door
 
 ### POST Request
 
-    POST /api/save_user_request/
+    POST /api/userrequests/save_user_request/
 
 #### body
 
@@ -237,7 +241,7 @@ API for elevator functionings like elevator operation, destination reached, curr
 
 ### POST Request
 
-    POST /elevator/elevator/
+    POST /api/elevator/next_destinations/
 
 #### body
 
@@ -252,6 +256,7 @@ API for elevator functionings like elevator operation, destination reached, curr
         "destinations": [1,5,8,10],
         "next_destination": 1,
         "final_destination": 10,
+        "current_floor": 0,
         "moving_direction_final_destination": 10,
         "current_direction": "moving up"
     }
@@ -259,7 +264,7 @@ API for elevator functionings like elevator operation, destination reached, curr
 
 ### POST Request
 
-    POST /elevator/reach_next_destination/
+    POST /api/elevator/reach_next_destination/
 
 #### body
 
@@ -271,14 +276,14 @@ API for elevator functionings like elevator operation, destination reached, curr
 
     {
         "success":true, 
-        "next_destination": 8,
-        "current_floor": 1
+        "message": "destination reached successfully",
+        "next_destination": 5
     }
 
 
 ### POST Request
 
-    POST /elevator/destination_reached/
+    POST /api/elevator/destination_reached/
 
 #### body
 

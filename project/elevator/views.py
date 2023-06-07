@@ -367,7 +367,7 @@ class Maintenance(viewsets.ModelViewSet):
         else:
             cache.set('direction', 'stand_by', timeout=None)
             status = "Elevator is under maintenance"
-        return Response({"success": True, "elevator_status":status})
+        return Response({"success": True, "message":status})
 
 
     # Set the state of the elevator to be working or maintenance
