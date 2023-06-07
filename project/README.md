@@ -322,3 +322,6 @@ API for elevator functionings like elevator operation, destination reached, curr
 
 https://clipchamp.com/watch/Ngkw0XzJJzc
 
+# Deployed link
+
+https://jumping-minds-project.vercel.app/api/
