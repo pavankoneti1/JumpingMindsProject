@@ -191,6 +191,12 @@ API to open or close the door
 
     GET /api/userrequests/fetch_all_requests/
 
+#### body
+
+    {
+        "elevator_name": "e1"
+    }
+
 ### Response
 
     {
@@ -202,6 +208,13 @@ API to open or close the door
 ### GET Request
 
     GET /api/userrequests/get_elevator_direction/
+
+#### body
+
+    {
+        "elevator_name": "e1"
+    }
+
 
 ### Response
 
