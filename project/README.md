@@ -335,6 +335,10 @@ API for elevator functionings like elevator operation, destination reached, curr
 
 https://clipchamp.com/watch/Ngkw0XzJJzc
 
+# Postman documentation
+
+https://documenter.getpostman.com/view/20110475/2s93sdZXuq
+
 # Deployed link
 
 https://jumping-minds-project.vercel.app/api/
